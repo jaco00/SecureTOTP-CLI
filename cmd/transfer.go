@@ -43,7 +43,7 @@ func CmdImport(env *AppEnv) error {
 	fmt.Print("Enter export filename[json or csv]: ")
 	fmt.Scanln(&importFile)
 
-	fileContent, err := ioutil.ReadFile(importFile)
+	fileContent, err := os.ReadFile(importFile)
 	if err != nil {
 		fmt.Printf("Read file [%s] failed : %s\n", importFile, err)
 		return err

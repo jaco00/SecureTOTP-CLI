@@ -24,21 +24,19 @@ import (
 	"bytes"
 	"encoding/hex"
 	"testing"
-	"totp/utils"
 )
 
 func TestKeyGen(t *testing.T) {
 	salt := "this_is_a_test_salt"
 	para := "m=65536&t=10&p=4"
 	expectedKey := "f2dd5d83d114089d052f88bfebf66f576c994b5f2ac1dc1e6e650ae735caa032"
-	conf := utils.HashParams{
+	conf := HashParams{
 		HashType: "argon2id",
 		Salt:     []byte(salt),
 		Para:     para,
 	}
-	pwdstr := "abc"
-	passwd = &pwdstr
-	encHashInfo, key, err := KeyGen(utils.ToEncHashInfo(conf), EncFileVer)
+	kgPasswd = "abc"
+	encHashInfo, key, err := KeyGen(ToEncHashInfo(conf), EncFileVer)
 	if err != nil {
 	}
 	if string(bytes.TrimRight(encHashInfo.Salt[:], "\x00")) != salt {

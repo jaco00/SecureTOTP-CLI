@@ -28,8 +28,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/url"
+	"os"
 	"strconv"
 
 	"golang.org/x/crypto/argon2"
@@ -65,7 +65,7 @@ func Gen256BitSecretKey(pwdTxt string, keyFile string, hashParams *HashParams) (
 	res := HashParams{}
 	pwdTxt = DefaultPwd + pwdTxt
 	if keyFile != "" {
-		fileContent, err := ioutil.ReadFile(keyFile)
+		fileContent, err := os.ReadFile(keyFile)
 		fmt.Printf("Please keep the keyfile[%s] secure as it has been utilized.\n", keyFile)
 		if err != nil {
 			return HashParams{}, err

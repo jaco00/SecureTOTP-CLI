@@ -131,17 +131,21 @@ func (c *TOTPConfig) ParseOTPAuthURL(authURL string) error {
 	if err != nil {
 		return err
 	}
-
-	parts := strings.SplitN(strings.TrimPrefix(u.Path, "/"), ":", 2)
-	if len(parts) != 2 {
-		return fmt.Errorf("Invalid path format in URL")
+	if strings.ToLower(u.Scheme) != "otpauth" {
+		return fmt.Errorf("Bad scheme")
 	}
 
 	if u.Host != "totp" {
 		return fmt.Errorf("Invalid auth type")
 	}
-	c.Label = parts[1]
-	c.Issuer = parts[0]
+
+	parts := strings.SplitN(strings.TrimPrefix(u.Path, "/"), ":", 2)
+	if len(parts) > 0 {
+		c.Issuer = parts[0]
+	}
+	if len(parts) > 1 {
+		c.Label = parts[1]
+	}
 
 	params, err := url.ParseQuery(u.RawQuery)
 	if err != nil {
@@ -155,10 +159,10 @@ func (c *TOTPConfig) ParseOTPAuthURL(authURL string) error {
 		c.Digits = DefaultDigits
 	}
 	c.Period = parseInt(params.Get("period"))
+	fmt.Println("period", c.Period)
 	if c.Period == 0 {
 		c.Period = DefaultPeriod
 	}
-	fmt.Println(c)
 	return nil
 }
 

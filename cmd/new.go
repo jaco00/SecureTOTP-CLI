@@ -41,7 +41,10 @@ func CmdNew(env *AppEnv) error {
 	fmt.Scanln(&line)
 
 	if strings.HasPrefix(line, "otpauth://") {
-		totpConfig.ParseOTPAuthURL(line)
+		err := totpConfig.ParseOTPAuthURL(line)
+		if err != nil {
+			return err
+		}
 	} else {
 		totpConfig.Secret = line
 		fmt.Print("Enter Period (default: ", core.DefaultPeriod, "): ")

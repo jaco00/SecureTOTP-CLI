@@ -23,6 +23,7 @@ package utils
 import (
 	"errors"
 	"fmt"
+	"hash/crc64"
 	"syscall"
 
 	"golang.org/x/term"
@@ -56,4 +57,11 @@ func GetPassword(newPwd bool) (string, error) {
 	} else {
 		return "", errors.New("Passwords do not match. Please try again.")
 	}
+}
+
+func GetCrcCode(data []byte) uint64 {
+	crcTable := crc64.MakeTable(crc64.ECMA)
+	crc := crc64.New(crcTable)
+	crc.Write(data)
+	return crc.Sum64()
 }

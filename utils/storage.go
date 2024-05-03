@@ -64,7 +64,10 @@ type EncFileHeader struct {
 	Magic     uint64
 	Ver       uint32 //Enc version
 	Preserved uint32
+	Crc       uint64
 	TimeStamp uint64
+	DataLen   uint32
+	Para      uint32 //preserved
 	HParams   EncHashInfo
 }
 
@@ -76,7 +79,7 @@ type EncFile struct {
 	Key []byte //32 bytes
 }
 
-//ver represents the version of the Key derivation logic
+// ver represents the version of the Key derivation logic
 type KeyGenFn func(info *EncHashInfo, ver uint32) (EncHashInfo, []byte, error)
 
 func (f *EncFile) Init(ver uint32, keyGen KeyGenFn) error {
@@ -103,27 +106,59 @@ func (f *EncFile) GetFileInfo() []string {
 	return []string{ctTime, ver, salt, hashType, hashVer, hashPara}
 }
 
-func (f *EncFile) WriteToFile(filename string, data []byte) error {
-	f.Data = data
+func (f *EncFile) writeFile(filename string) error {
 	f.Header.TimeStamp = uint64(time.Now().Unix())
 	of, err := os.Create(filename)
 	if err != nil {
 		return err
 	}
 	defer of.Close()
-	err = binary.Write(of, binary.LittleEndian, f.Header)
-	if err != nil {
-		return err
-	}
 	cryptoData, err := EncryptAES256(f.Key, f.Data, false)
 	if err != nil {
 		return err
 	}
+	f.Header.Crc = GetCrcCode(cryptoData)
+	f.Header.DataLen = uint32(len(cryptoData))
+
+	err = binary.Write(of, binary.LittleEndian, f.Header)
+	if err != nil {
+		return err
+	}
+
 	_, err = of.Write(cryptoData)
 	if err != nil {
 		return err
 	}
-	return nil
+	return of.Sync()
+}
+
+func switchFile(filename, tempfile string, key []byte) error {
+	nf := EncFile{}
+	nf.Key = key
+	if err := nf.LoadFromFile(tempfile, nil); err != nil {
+		fmt.Printf("Verify failed :%v\n", err)
+		return err
+	}
+	if _, err := os.Stat(filename); err == nil {
+		if err := os.Remove(filename); err != nil {
+			return err
+		}
+	} else {
+		if !os.IsNotExist(err) {
+			return err
+		}
+	}
+	fmt.Printf("Verify ok, rename %s -> %s\n", tempfile, filename)
+	return os.Rename(tempfile, filename)
+}
+
+func (f *EncFile) WriteToFile(filename string, data []byte) error {
+	tempFile := filename + ".temp"
+	f.Data = data
+	if err := f.writeFile(tempFile); err != nil {
+		return err
+	}
+	return switchFile(filename, tempFile, f.Key)
 }
 
 func (f *EncFile) LoadFromFile(filename string, keyGen KeyGenFn) error {
@@ -145,9 +180,14 @@ func (f *EncFile) LoadFromFile(filename string, keyGen KeyGenFn) error {
 		return errors.New("Bad file magic")
 	}
 	//f.Key, _, err = keyGen(f.Header.Salt[:], f.Header.Ver)
-	_, f.Key, err = keyGen(&f.Header.HParams, f.Header.Ver)
-	if err != nil {
-		return err
+	if keyGen != nil {
+		_, f.Key, err = keyGen(&f.Header.HParams, f.Header.Ver)
+		if err != nil {
+			return err
+		}
+	}
+	if len(f.Key) == 0 {
+		return errors.New("Key is empty")
 	}
 	currentOffset, err := file.Seek(0, io.SeekCurrent)
 	if err != nil {
@@ -162,6 +202,13 @@ func (f *EncFile) LoadFromFile(filename string, keyGen KeyGenFn) error {
 	if err != nil {
 		return err
 	}
+	if bytesToRead != int64(f.Header.DataLen) {
+		return errors.New("Bad file length")
+	}
+	if GetCrcCode(data) != f.Header.Crc {
+		return errors.New("Bad crc")
+	}
+
 	f.Data, err = DecryptAES256(f.Key, data, false)
 	return err
 }

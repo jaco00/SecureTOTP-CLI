@@ -82,5 +82,5 @@ func CmdNew(env *AppEnv) error {
 	env.RuntimeData.TotpList = append(env.RuntimeData.TotpList, totpConfig)
 	fmt.Println("TOTP Configuration added successfully.")
 
-	return nil
+	return CmdSave(env)
 }
